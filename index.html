@@ -1,0 +1,714 @@
+<title>Suivi Ventes Casablanca (hors ligne)</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky filter bar, KPI strip, trend + breakdowns, then sales table beside a permanent entry form. */
+:root{
+  --bg:#f2f5f8; --surface:#ffffff; --surface-2:#f7f9fb; --fg:#14202b; --muted:#566676; --line:#dce3ea;
+  --accent:#2a78d6; --accent-ink:#ffffff; --accent-soft:#e3eefb;
+  --good:#17784a; --good-soft:#def3e8; --warn:#9a5b00; --warn-soft:#fbeccb; --bad:#b83227; --bad-soft:#fbe0dc; --neutral:#5d6b78; --neutral-soft:#e8ecf0;
+  --grid:#e6ebf0; --rep:#6250d6; --rep-soft:#e9e6fa;
+  --font:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e141a; --surface:#16202a; --surface-2:#1b2733; --fg:#e8eef3; --muted:#9aabb9; --line:#27343f;
+  --accent:#3987e5; --accent-ink:#06121f; --accent-soft:#16304d;
+  --good:#46c083; --good-soft:#15332a; --warn:#e3a53c; --warn-soft:#3a2d12; --bad:#f0705f; --bad-soft:#3c1c19; --neutral:#a3b1be; --neutral-soft:#223140;
+  --grid:#202d38; --rep:#9085e9; --rep-soft:#272248; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e141a; --surface:#16202a; --surface-2:#1b2733; --fg:#e8eef3; --muted:#9aabb9; --line:#27343f;
+  --accent:#3987e5; --accent-ink:#06121f; --accent-soft:#16304d;
+  --good:#46c083; --good-soft:#15332a; --warn:#e3a53c; --warn-soft:#3a2d12; --bad:#f0705f; --bad-soft:#3c1c19; --neutral:#a3b1be; --neutral-soft:#223140;
+  --grid:#202d38; --rep:#9085e9; --rep-soft:#272248; color-scheme:dark}
+*{box-sizing:border-box}
+html{color-scheme:light}body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 40px}
+.wrap{max-width:1280px;margin:0 auto}
+h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
+.num{font-variant-numeric:tabular-nums;font-family:var(--mono)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header + filters */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:14px 12px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.top-row{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;justify-content:space-between}
+.brand h1{font-size:20px;letter-spacing:-.01em}
+.brand p{margin:0;color:var(--muted);font-size:12.5px}
+.filters{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:center;margin-top:12px}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:2px}
+.seg button{border:0;background:none;padding:6px 14px;border-radius:6px;color:var(--muted);font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.nav{display:inline-flex;align-items:center;gap:6px}
+.nav .label{min-width:190px;text-align:center;font-weight:500}
+.ibtn{border:1px solid var(--line);background:var(--surface);border-radius:8px;width:34px;height:34px;display:inline-grid;place-items:center}
+.ibtn:hover{border-color:var(--accent)}
+.field-inline{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px}
+input[type=date],input[type=text],input[type=number],input[type=search],select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+.spacer{flex:1}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 14px;font-weight:500}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--bad)}
+.btn.danger.armed{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn:disabled{opacity:.55;cursor:default}
+
+/* kpis */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:0}
+.kpi .k{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.kpi .v{font-family:var(--mono);font-size:26px;font-weight:500;margin:4px 0 2px;letter-spacing:-.02em;overflow-wrap:anywhere}
+.kpi .d{font-size:12px;color:var(--muted)}
+.d .up{color:var(--good)} .d .down{color:var(--bad)}
+
+/* panels */
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);gap:12px;margin-bottom:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.panel h2{font-size:14px;margin-bottom:2px}
+.panel .sub{color:var(--muted);font-size:12.5px;margin-bottom:12px}
+.chart{position:relative}
+.chart svg{display:block;width:100%;height:auto}
+.chart text{fill:var(--muted);font-family:var(--mono);font-size:10.5px}
+.tl{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;margin-bottom:6px}.tl span{display:flex;align-items:center;gap:6px}
+.tip{position:absolute;pointer-events:none;background:var(--fg);color:var(--bg);padding:6px 9px;border-radius:6px;font-size:12px;white-space:nowrap;transform:translate(-50%,-100%);z-index:3}
+.tip b{font-family:var(--mono);font-weight:500}
+.rank{display:grid;gap:7px}
+.rank-row{display:grid;grid-template-columns:96px minmax(0,1fr) 84px;align-items:center;gap:8px;font-size:13px}
+.rank-row .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rank-row .bar{height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+.rank-row .bar i{display:block;height:100%;background:var(--accent);border-radius:0 4px 4px 0}
+.rank-row .val{text-align:right;font-family:var(--mono);font-size:12.5px}
+.linkbtn{background:none;border:0;color:var(--accent);padding:4px 0;font-weight:500}
+.statusbar{display:flex;height:12px;gap:2px;margin:6px 0 10px}
+.statusbar i{display:block;height:100%;border-radius:3px;min-width:3px}
+.legend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;font-size:12.5px}
+.legend span{display:flex;align-items:center;gap:6px}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+
+/* workspace */
+.work{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;align-items:start}
+.work .panel.form{position:sticky;top:calc(env(safe-area-inset-top,0px) + 150px)}
+.tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}
+.tools input[type=search]{flex:1 1 220px}
+.note{color:var(--muted);font-size:12.5px;margin:0 0 8px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th{position:sticky;top:0;background:var(--surface-2);text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tr.sel td{background:var(--accent-soft)}
+td.r,th.r{text-align:right}
+td.cm{max-width:170px;color:var(--muted);font-size:12.5px;overflow-wrap:anywhere}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:500;white-space:nowrap}
+.pill i{width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block}
+.pill.accepted{background:var(--good-soft);color:var(--good)}
+.pill.waiting{background:var(--warn-soft);color:var(--warn)}
+.pill.rejected{background:var(--bad-soft);color:var(--bad)}
+.pill.matrice{background:var(--neutral-soft);color:var(--neutral)}
+.qd,.qs{padding:3px 6px;border-radius:6px;font-size:12.5px;width:auto}
+.qd{font-family:var(--mono);width:128px;padding:3px 4px}
+.qs{font-weight:500}
+.qs.accepted{color:var(--good);background:var(--good-soft)}.qs.waiting{color:var(--warn);background:var(--warn-soft)}.qs.rejected{color:var(--bad);background:var(--bad-soft)}.qs.matrice{color:var(--neutral);background:var(--neutral-soft)}
+.yn{font-size:12.5px;color:var(--muted)} .yn.non{color:var(--bad);font-weight:500}
+.edit{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:3px 10px;font-size:12.5px}
+.edit:hover{border-color:var(--accent);color:var(--accent)}
+
+/* form */
+.form h2{font-size:15px;margin-bottom:12px}
+.form .fg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form label{display:grid;gap:4px;font-size:12px;color:var(--muted)}
+.form label.full{grid-column:1/-1}
+.form input,.form select,.form textarea{width:100%;color:var(--fg)}
+.form textarea{resize:vertical;min-height:62px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.err{color:var(--bad);font-size:12.5px;margin-top:8px;min-height:1em}
+.editing-tag{background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:500;margin-left:6px}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:8px;z-index:20;font-size:13px}
+.theme{font-size:12.5px}
+@media (max-width:980px){.grid,.work{grid-template-columns:minmax(0,1fr)}.work .panel.form{position:static;order:-1}}
+@media (max-width:520px){.nav .label{min-width:0;flex:1}.nav{flex:1 1 100%}.rank-row{grid-template-columns:78px minmax(0,1fr) 76px}.kpi .v{font-size:22px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+[hidden]{display:none!important}
+.modal{position:fixed;inset:0;background:rgba(8,14,20,.58);display:grid;place-items:start center;padding:max(16px,env(safe-area-inset-top,0px)) 16px 16px;z-index:30;overflow:auto}
+.modal-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;width:min(660px,100%);padding:18px;margin-top:4vh}
+.mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.mh h2{font-size:17px}
+.modal .note{margin-bottom:12px}
+.filebox,.pastebox,.keybox{display:grid;gap:6px;font-size:12.5px;color:var(--muted);margin-bottom:12px}
+.keybox{margin-top:12px}
+.filebox input{color:var(--fg);padding:8px;border:1px dashed var(--line);border-radius:8px;background:var(--surface-2);width:100%}
+.pastebox textarea{min-height:70px;font-family:var(--mono);font-size:12px;resize:vertical;width:100%;color:var(--fg)}
+.opts{border:1px solid var(--line);border-radius:8px;padding:8px 12px 10px;margin:0;display:grid;gap:8px}
+.opts legend{font-size:12.5px;color:var(--muted);padding:0 6px}
+.opt{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.opt input{margin-top:3px;accent-color:var(--accent)}
+.opt b{display:block;font-weight:500}.opt small{display:block;color:var(--muted);font-size:12.5px}
+.opt.danger b{color:var(--bad)}
+#impSum{margin-top:12px}
+.sumlist{margin:0;padding-left:18px;display:grid;gap:3px}.sumlist.small{font-size:12.5px;color:var(--muted);margin-top:6px}
+.warnline{color:var(--bad)}
+details summary{cursor:pointer;color:var(--accent);margin-top:6px;font-size:12.5px}
+.btn.primary.danger{background:var(--bad);border-color:var(--bad);color:#fff}
+.pill.reported{background:var(--rep-soft);color:var(--rep)}
+.qs.reported{color:var(--rep);background:var(--rep-soft)}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="top-row">
+      <div class="brand"><h1>Suivi Ventes Casablanca</h1><p id="meta">Chargement des ventes…</p></div>
+      <button class="btn theme" id="themeBtn" type="button" aria-label="Changer de thème">Thème</button>
+    </div>
+    <div class="filters" role="group" aria-label="Filtres de période">
+      <div class="seg" id="modeSeg">
+        <button type="button" data-mode="day">Jour</button>
+        <button type="button" data-mode="week">Semaine</button>
+        <button type="button" data-mode="month">Mois</button>
+        <button type="button" data-mode="range">Intervalle</button>
+      </div>
+      <div class="nav" id="nav">
+        <button class="ibtn" id="prev" type="button" aria-label="Période précédente">‹</button>
+        <span class="label" id="plabel"></span>
+        <button class="ibtn" id="next" type="button" aria-label="Période suivante">›</button>
+      </div>
+      <div class="nav" id="rangeBox" hidden>
+        <label class="field-inline" for="dFrom">Du <input type="date" id="dFrom"></label>
+        <label class="field-inline" for="dTo">au <input type="date" id="dTo"></label>
+      </div>
+      <button class="btn" id="todayBtn" type="button">Aujourd'hui</button>
+      <span class="spacer"></span>
+      <label class="field-inline" for="fProfile">Commercial <select id="fProfile"><option value="">Tous</option></select></label>
+      <label class="field-inline" for="fStatus">Statut BO
+        <select id="fStatus"><option value="">Tous</option><option>Accepted</option><option>Waiting</option><option>Rejected</option><option>Matrice</option><option>Reported</option></select></label>
+    </div>
+  </header>
+
+  <section class="kpis" id="kpis" aria-label="Indicateurs"></section>
+
+  <section class="grid">
+    <div class="panel">
+      <h2>Répartition des fiches</h2>
+      <p class="sub">Par statut BO sur la période</p>
+      <div id="status"></div>
+      <h2 style="margin-top:18px">CA validé par commercial</h2>
+      <p class="sub">Classement sur la période</p>
+      <div class="rank" id="rank"></div>
+      <button class="linkbtn" id="rankMore" type="button" hidden></button>
+    </div>
+    <div class="panel">
+      <h2 id="trendTitle">Montants par jour et par statut</h2>
+      <p class="sub" id="trendSub"></p>
+      <div class="chart" id="trend"></div>
+    </div>
+  </section>
+
+  <section class="work">
+    <div class="panel">
+      <h2>Ventes</h2>
+      <p class="sub">Changez la date ou le statut directement dans le tableau. Pour le reste, cherchez la fiche et cliquez sur Modifier.</p>
+      <div class="tools">
+        <input type="search" id="search" placeholder="Fiche client, fiche CDA, commercial ou commentaire" aria-label="Rechercher une fiche">
+        <button class="btn" id="csvBtn" type="button">Exporter CSV</button><button class="btn" id="bkBtn" type="button">Sauvegarde JSON</button><button class="btn" id="impBtn" type="button">Importer</button>
+      </div>
+      <p class="note" id="tnote"></p>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Date</th><th>Commercial</th><th>Fiche client</th><th>Fiche CDA</th><th class="r">Montant</th><th>BA</th><th>SQ</th><th>BO</th><th>Commentaire</th><th></th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table></div>
+      <div id="tmore" style="margin-top:8px"></div>
+    </div>
+
+    <form class="panel form" id="form" autocomplete="off">
+      <h2 id="formTitle">Nouvelle vente</h2>
+      <div class="fg">
+        <label>Date<input type="date" id="fDate" required></label>
+        <label>Commercial<input type="text" id="fProf" list="profList" required><datalist id="profList"></datalist></label>
+        <label>Fiche client<input type="text" id="fClient" inputmode="numeric" required></label>
+        <label>Fiche CDA<input type="text" id="fCda" inputmode="numeric" required></label>
+        <label>Montant (€)<input type="number" id="fMontant" step="0.01" min="0" required></label>
+        <label>Statut BO<select id="fBo"><option>Accepted</option><option>Waiting</option><option>Rejected</option><option>Matrice</option><option>Reported</option></select></label>
+        <label>BA<select id="fBa"><option value="oui">oui</option><option value="non">non</option></select></label>
+        <label>SQ<select id="fSq"><option value="oui">oui</option><option value="non">non</option></select></label>
+        <label class="full">Commentaire<textarea id="fComment"></textarea></label>
+      </div>
+      <div class="err" id="ferr" role="alert"></div>
+      <div class="actions">
+        <button class="btn primary" type="submit" id="saveBtn">Enregistrer</button>
+        <button class="btn" type="button" id="cancelBtn">Annuler</button>
+        <button class="btn danger" type="button" id="delBtn" hidden>Supprimer</button>
+      </div>
+    </form>
+  </section>
+</div>
+<div class="modal" id="impModal" hidden role="dialog" aria-modal="true" aria-labelledby="impTitle">
+  <div class="modal-card">
+    <div class="mh"><h2 id="impTitle">Importer des ventes</h2><button class="ibtn" id="impClose" type="button" aria-label="Fermer">×</button></div>
+    <p class="note">Fichier Excel (.xlsx), CSV ou JSON avec les colonnes Date, Profile (ou Commercial), Fiche Client, Fiche CDA, Montant, BA, SQ, BO, Comment. Toutes les feuilles du classeur sont lues, la première ligne trouvée avec « Date » et « Fiche CDA » sert d'en-tête.</p>
+    <label class="filebox" for="impFile">Choisir un fichier <input type="file" id="impFile" accept=".xlsx,.xlsm,.xls,.csv,.json,.txt"></label>
+    <label class="pastebox" for="impPaste">Ou collez ici des lignes copiées depuis Excel, avec la ligne d'en-tête
+      <textarea id="impPaste" placeholder="Date	Profile	Fiche Client	Fiche CDA	Montant	BA	SQ	BO	Comment"></textarea></label>
+    <fieldset class="opts"><legend>Si une fiche existe déjà</legend>
+      <label class="opt"><input type="radio" name="impOpt" value="add" checked><span><b>Ne pas écraser</b><small>Ajoute seulement les nouvelles fiches. Les fiches déjà présentes ne changent pas.</small></span></label>
+      <label class="opt"><input type="radio" name="impOpt" value="overwrite"><span><b>Écraser les fiches existantes</b><small>Les fiches déjà présentes sont remplacées par les lignes du fichier, les nouvelles sont ajoutées.</small></span></label>
+      <label class="opt danger"><input type="radio" name="impOpt" value="replace"><span><b>Tout remplacer</b><small>Supprime toutes les ventes actuelles, puis charge le fichier.</small></span></label>
+    </fieldset>
+    <label class="keybox" for="impKey">Reconnaître une fiche existante par
+      <select id="impKey"><option value="cdadate">Fiche CDA + date (recommandé)</option><option value="cda">Fiche CDA seule</option></select></label>
+    <div id="impSum" aria-live="polite"></div>
+    <div class="actions"><button class="btn primary" type="button" id="impGo" disabled>Importer</button><button class="btn" type="button" id="impCancel">Annuler</button></div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const eur0=new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0});
+const eur2=new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',minimumFractionDigits:2});
+const pct=new Intl.NumberFormat('fr-FR',{style:'percent',maximumFractionDigits:0});
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parse=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const addDays=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return iso(d)};
+const diffDays=(a,b)=>Math.round((parse(b)-parse(a))/864e5);
+const monday=s=>{const d=parse(s);const k=(d.getDay()+6)%7;d.setDate(d.getDate()-k);return iso(d)};
+const fmtD=(s,o)=>parse(s).toLocaleDateString('fr-FR',o||{day:'2-digit',month:'short'});
+const fmtFull=s=>parse(s).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
+const isoWeek=s=>{const d=parse(s);d.setDate(d.getDate()+3-((d.getDay()+6)%7));const w1=new Date(d.getFullYear(),0,4);return 1+Math.round(((d-w1)/864e5-3+((w1.getDay()+6)%7))/7)};
+const NET_RATE=0.20; /* part retirée du CA validé pour obtenir le CA validé net */
+const STAT={Accepted:'accepted',Waiting:'waiting',Rejected:'rejected',Matrice:'matrice',Reported:'reported'};
+const STAT_COL={Accepted:'var(--good)',Waiting:'var(--warn)',Rejected:'var(--bad)',Matrice:'var(--neutral)',Reported:'var(--rep)'};
+
+const today=iso(new Date());
+const S={rows:[],loaded:false,mode:'month',anchor:today,from:addDays(today,-29),to:today,profile:'',status:'',q:'',edit:null,showAll:false,limit:60,armed:false};
+let db=null,dl=null;
+
+/* ---------- period ---------- */
+function range(){
+  if(S.mode==='day')return[S.anchor,S.anchor];
+  if(S.mode==='week'){const m=monday(S.anchor);return[m,addDays(m,6)]}
+  if(S.mode==='month'){const d=parse(S.anchor);return[iso(new Date(d.getFullYear(),d.getMonth(),1)),iso(new Date(d.getFullYear(),d.getMonth()+1,0))]}
+  return S.from<=S.to?[S.from,S.to]:[S.to,S.from];
+}
+function prevRange([a,b]){
+  if(S.mode==='month'){const d=parse(a);return[iso(new Date(d.getFullYear(),d.getMonth()-1,1)),iso(new Date(d.getFullYear(),d.getMonth(),0))]}
+  const n=diffDays(a,b)+1;return[addDays(a,-n),addDays(a,-1)];
+}
+function label(){
+  const [a,b]=range();
+  if(S.mode==='day')return parse(a).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  if(S.mode==='week')return 'Semaine '+isoWeek(a)+' · '+fmtD(a)+' – '+fmtD(b,{day:'2-digit',month:'short',year:'numeric'});
+  if(S.mode==='month'){const t=parse(a).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});return t[0].toUpperCase()+t.slice(1)}
+  return fmtFull(a)+' → '+fmtFull(b);
+}
+function shift(dir){
+  if(S.mode==='day')S.anchor=addDays(S.anchor,dir);
+  else if(S.mode==='week')S.anchor=addDays(S.anchor,7*dir);
+  else if(S.mode==='month'){const d=parse(S.anchor);S.anchor=iso(new Date(d.getFullYear(),d.getMonth()+dir,Math.min(d.getDate(),28)))}
+  else{const n=diffDays(...range())+1;S.from=addDays(range()[0],n*dir);S.to=addDays(range()[1],n*dir)}
+  render();
+}
+
+/* ---------- data helpers ---------- */
+const inRange=(r,[a,b])=>r.date>=a&&r.date<=b;
+const passes=r=>(!S.profile||r.profile===S.profile)&&(!S.status||r.bo===S.status);
+const passesNoStatus=r=>(!S.profile||r.profile===S.profile);
+function stats(rows){
+  const acc=rows.filter(r=>r.bo==='Accepted');
+  const ca=acc.reduce((s,r)=>s+r.montant,0);
+  const wait=rows.filter(r=>r.bo==='Waiting');
+  return{ca,n:acc.length,avg:acc.length?ca/acc.length:0,total:rows.length,rate:rows.length?acc.length/rows.length:0,
+    wait:wait.length,waitAmt:wait.reduce((s,r)=>s+r.montant,0),...(()=>{const f=o=>rows.filter(r=>r.bo===o),s=a=>a.reduce((t,r)=>t+r.montant,0);return{rej:f('Rejected').length,rejAmt:s(f('Rejected')),rep:f('Reported').length,repAmt:s(f('Reported'))}})()};
+}
+function delta(c,p){
+  if(!p)return'<span>pas de base de comparaison</span>';
+  const v=(c-p)/p;const cls=v>=0?'up':'down';
+  return `<span class="${cls}">${v>=0?'▲':'▼'} ${pct.format(Math.abs(v))}</span> vs période précédente`;
+}
+
+/* ---------- render ---------- */
+function render(){
+  const rng=range();
+  $('plabel').textContent=label();
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===S.mode)));
+  $('rangeBox').hidden=S.mode!=='range';
+  $('dFrom').value=rng[0];$('dTo').value=rng[1];
+  $('meta').textContent=S.loaded?`${S.rows.length} ventes · données enregistrées dans ce navigateur`:'Chargement des ventes…';
+  syncProfiles();
+  const cur=S.rows.filter(r=>inRange(r,rng)&&passesNoStatus(r));
+  const curStat=cur.filter(r=>!S.status||r.bo===S.status);
+  const prev=S.rows.filter(r=>inRange(r,prevRange(rng))&&passesNoStatus(r));
+  const a=stats(S.status?curStat:cur),p=stats(prev);
+  $('kpis').innerHTML=[
+    ['CA validé',eur0.format(a.ca),'Accepted uniquement · '+delta(a.ca,p.ca)],
+    ['CA validé net',eur0.format(a.ca*(1-NET_RATE)),'CA validé moins '+Math.round(NET_RATE*100)+' % ('+eur0.format(a.ca*NET_RATE)+')'],
+    ['Ventes validées',a.n,delta(a.n,p.n)],
+    ['Taux de validation',pct.format(a.rate),`${a.n} validées sur ${a.total} fiches`],
+    ['En attente de validation',a.wait,eur0.format(a.waitAmt)+' à valider'],
+    ['Rejetées',a.rej,eur0.format(a.rejAmt)+' rejetés (hors CA)'],
+    ['Reportées',a.rep,eur0.format(a.repAmt)+' reportés (hors CA)']
+  ].map(([k,v,d])=>`<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+  drawTrend(rng);drawStatus(cur);drawRank(S.status?curStat:cur);drawTable(rng);
+}
+function syncProfiles(){
+  const names=[...new Set(S.rows.map(r=>r.profile))].sort((a,b)=>a.localeCompare(b,'fr'));
+  const sel=$('fProfile');const key=names.join('|');
+  if(sel.dataset.key!==key){
+    sel.innerHTML='<option value="">Tous</option>'+names.map(n=>`<option>${esc(n)}</option>`).join('');
+    sel.dataset.key=key;$('profList').innerHTML=names.map(n=>`<option value="${esc(n)}">`).join('');
+  }
+  sel.value=S.profile;
+}
+function nice(m){if(m<=0)return 1;const e=Math.pow(10,Math.floor(Math.log10(m)));const f=m/e;return(f<=1?1:f<=2?2:f<=5?5:10)*e}
+function drawTrend(rng){
+  let buckets=[],title,sub;
+  const rows=S.rows.filter(r=>passesNoStatus(r)&&(!S.status||r.bo===S.status));
+  const ORDER=['Accepted','Waiting','Rejected','Matrice','Reported'];
+  let start,end,weekly=false;
+  if(S.mode==='day'){end=S.anchor;start=addDays(end,-13);sub='14 derniers jours jusqu\'au jour choisi'}
+  else{[start,end]=rng;const n=diffDays(start,end)+1;weekly=S.mode==='range'&&n>45;
+    sub=(weekly?'Montants par semaine':'Montants par jour ouvré (week-end inclus dans le vendredi)')+', tous statuts'}
+  if(weekly){for(let d=monday(start);d<=end;d=addDays(d,7))buckets.push({a:d,b:addDays(d,6),lab:fmtD(d)})}
+  else{for(let d=start;d<=end;d=addDays(d,1)){const wd=parse(d).getDay();if(wd===0||wd===6)continue;buckets.push({a:d,b:wd===5?addDays(d,2):d,lab:parse(d).getDate()+''})}}
+  buckets.forEach(k=>{const rs=rows.filter(r=>r.date>=k.a&&r.date<=k.b&&r.date>=start&&r.date<=end);k.by={};k.cnt={};ORDER.forEach(o=>{const x=rs.filter(r=>r.bo===o);k.by[o]=x.reduce((s,r)=>s+r.montant,0);k.cnt[o]=x.length});k.v=ORDER.reduce((s,o)=>s+k.by[o],0);k.n=rs.length});
+  $('trendSub').textContent=sub;
+  const W=720,H=230,L=48,R=6,T=10,B=28,pw=W-L-R,ph=H-T-B;
+  const max=Math.max(...buckets.map(b=>b.v),0);const step=nice(max/4||1);const top=Math.max(step*Math.ceil(max/step),step);
+  const sl=pw/buckets.length,bw=Math.min(30,sl*.7);
+  let g='';
+  for(let v=0;v<=top+1e-6;v+=step){const y=T+ph-v/top*ph;g+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="var(--grid)"/><text x="${L-6}" y="${y+3.5}" text-anchor="end">${v>=1000?(v/1000).toLocaleString('fr-FR')+' k':v}</text>`}
+  const every=Math.ceil(buckets.length/(weekly?10:16));
+  buckets.forEach((k,i)=>{
+    const x=L+sl*i+(sl-bw)/2,h=k.v/top*ph,y=T+ph-h;
+    const hl=S.mode==='day'&&S.anchor>=k.a&&S.anchor<=k.b;
+    if(h>0){let yy=T+ph;const op=S.mode==='day'&&!hl?.45:1;ORDER.forEach(o=>{const sh=k.by[o]/top*ph;if(sh<=0)return;yy-=sh;g+=`<rect x="${x}" y="${yy}" width="${bw}" height="${Math.max(sh,1)}" fill="${STAT_COL[o]}" stroke="var(--surface)" stroke-width="1" opacity="${op}"/>`})}
+    if(i%every===0||hl)g+=`<text x="${x+bw/2}" y="${H-10}" text-anchor="middle">${weekly?k.lab:k.lab}</text>`;
+    g+=`<rect data-i="${i}" x="${L+sl*i}" y="${T}" width="${sl}" height="${ph}" fill="transparent"/>`;
+  });
+  g+=`<line x1="${L}" x2="${W-R}" y1="${T+ph}" y2="${T+ph}" stroke="var(--line)"/>`;
+  const box=$('trend');
+  const used=ORDER.filter(o=>buckets.some(k=>k.by[o]>0));
+  box.innerHTML=`<div class="tl">${used.map(o=>`<span><i class="dot" style="background:${STAT_COL[o]}"></i>${o}</span>`).join('')}</div><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Montants par ${weekly?'semaine':'jour'} et par statut">${g}</svg><div class="tip" hidden></div>`;
+  const tip=box.querySelector('.tip');
+  const show=e=>{const rc=e.target;if(!rc.dataset||rc.dataset.i==null)return;const k=buckets[+rc.dataset.i];
+    const lab=weekly?`Sem. du ${fmtD(k.a)}`:fmtD(k.a,{weekday:'short',day:'2-digit',month:'short'})+(k.b>k.a?' + week-end':'');
+    tip.innerHTML=`${lab}<br><b>${eur2.format(k.v)}</b> · ${k.n} fiche${k.n>1?'s':''}`+ORDER.filter(o=>k.cnt[o]).map(o=>`<br><span style="color:inherit;opacity:.9">${o} : <b>${eur2.format(k.by[o])}</b> (${k.cnt[o]})</span>`).join('');tip.hidden=false;
+    const br=box.getBoundingClientRect(),rr=rc.getBoundingClientRect();
+    tip.style.left=Math.min(Math.max(rr.left-br.left+rr.width/2,60),br.width-60)+'px';const sv=box.querySelector('svg').getBoundingClientRect();tip.style.top=Math.max((T+ph-k.v/top*ph)*(sv.height/H)-6,42)+'px'};
+  box.querySelectorAll('rect[data-i]').forEach(r=>{r.addEventListener('pointerenter',show);r.addEventListener('pointerdown',show);r.addEventListener('pointerleave',()=>tip.hidden=true)});
+}
+function drawStatus(cur){
+  const c={Accepted:0,Waiting:0,Rejected:0,Matrice:0,Reported:0};cur.forEach(r=>c[r.bo]=(c[r.bo]||0)+1);
+  const t=cur.length;
+  if(!t){$('status').innerHTML='<div class="empty" style="padding:8px 0">Aucune fiche sur cette période.</div>';return}
+  $('status').innerHTML=`<div class="statusbar" role="img" aria-label="Répartition par statut">${Object.keys(c).filter(k=>c[k]).map(k=>`<i style="flex:${c[k]};background:${STAT_COL[k]}" title="${k}: ${c[k]}"></i>`).join('')}</div>
+  <div class="legend">${Object.keys(c).map(k=>`<span><i class="dot" style="background:${STAT_COL[k]}"></i>${k} <b class="num">${c[k]}</b></span>`).join('')}</div>`;
+}
+function drawRank(rows){
+  const m={};rows.filter(r=>r.bo==='Accepted').forEach(r=>{(m[r.profile]=m[r.profile]||{v:0,n:0});m[r.profile].v+=r.montant;m[r.profile].n++});
+  const list=Object.entries(m).sort((a,b)=>b[1].v-a[1].v);
+  if(!list.length){$('rank').innerHTML='<div class="empty" style="padding:8px 0">Aucune vente validée.</div>';$('rankMore').hidden=true;return}
+  const max=list[0][1].v||1;const shown=S.showAll?list:list.slice(0,8);
+  $('rank').innerHTML=shown.map(([n,o])=>`<div class="rank-row"><span class="nm" title="${esc(n)}">${esc(n)}</span><span class="bar"><i style="width:${Math.max(o.v/max*100,1.5)}%"></i></span><span class="val" title="${o.n} vente${o.n>1?'s':''}">${eur0.format(o.v)}</span></div>`).join('');
+  $('rankMore').hidden=list.length<=8;$('rankMore').textContent=S.showAll?'Réduire':`Voir les ${list.length} commerciaux`;
+}
+function tableRows(rng){
+  const q=S.q.trim().toLowerCase();
+  let rows;
+  if(q){rows=S.rows.filter(r=>[r.client,r.cda,r.profile,r.comment].some(v=>String(v).toLowerCase().includes(q)))}
+  else rows=S.rows.filter(r=>inRange(r,rng)&&passes(r));
+  return rows.sort((a,b)=>b.date.localeCompare(a.date)||b.cda.localeCompare(a.cda));
+}
+function drawTable(rng){
+  const rows=tableRows(rng);const q=S.q.trim();
+  $('tnote').textContent=q?`${rows.length} résultat${rows.length>1?'s':''} sur toutes les ventes, sans filtre de période.`:`${rows.length} vente${rows.length>1?'s':''} sur la période.`;
+  if(!S.loaded){$('tbody').innerHTML='<tr><td colspan="10" class="empty">Chargement…</td></tr>';return}
+  if(!rows.length){$('tbody').innerHTML=`<tr><td colspan="10" class="empty">${q?'Aucune fiche ne correspond à cette recherche.':'Aucune vente sur cette période. Utilisez le formulaire pour en ajouter une.'}</td></tr>`;$('tmore').innerHTML='';return}
+  const shown=rows.slice(0,S.limit);
+  $('tbody').innerHTML=shown.map(r=>`<tr class="${S.edit===r.id?'sel':''}"><td><input type="date" class="qd" data-id="${esc(r.id)}" value="${esc(r.date)}" aria-label="Date de la fiche ${esc(r.cda)}"></td><td>${esc(r.profile)}</td><td class="num">${esc(r.client)}</td><td class="num">${esc(r.cda)}</td><td class="num r">${eur2.format(r.montant)}</td><td><span class="yn ${r.ba==='non'?'non':''}">${esc(r.ba||'–')}</span></td><td><span class="yn ${r.sq==='non'?'non':''}">${esc(r.sq||'–')}</span></td><td><select class="qs ${STAT[r.bo]||'matrice'}" data-id="${esc(r.id)}" aria-label="Statut de la fiche ${esc(r.cda)}">${['Accepted','Waiting','Rejected','Matrice','Reported'].map(o=>`<option${o===r.bo?' selected':''}>${o}</option>`).join('')}</select></td><td class="cm">${esc(r.comment)}</td><td><button type="button" class="edit" data-id="${esc(r.id)}">Modifier</button></td></tr>`).join('');
+  $('tmore').innerHTML=rows.length>shown.length?`<button class="btn" id="moreBtn" type="button">Afficher plus (${rows.length-shown.length})</button>`:'';
+  const mb=$('moreBtn');if(mb)mb.onclick=()=>{S.limit+=60;render()};
+}
+
+/* ---------- form ---------- */
+function resetForm(){
+  S.edit=null;S.armed=false;
+  $('formTitle').textContent='Nouvelle vente';
+  $('fDate').value=today;$('fProf').value=S.profile||'';$('fClient').value='';$('fCda').value='';$('fMontant').value='';
+  $('fBo').value='Accepted';$('fBa').value='oui';$('fSq').value='oui';$('fComment').value='';$('ferr').textContent='';
+  $('delBtn').hidden=true;$('delBtn').textContent='Supprimer';$('delBtn').classList.remove('armed');
+}
+function startEdit(id){
+  const r=S.rows.find(x=>x.id===id);if(!r)return;
+  S.edit=id;S.armed=false;
+  $('formTitle').innerHTML='Modifier la vente <span class="editing-tag">Fiche '+esc(r.cda)+'</span>';
+  $('fDate').value=r.date;$('fProf').value=r.profile;$('fClient').value=r.client;$('fCda').value=r.cda;$('fMontant').value=r.montant;
+  $('fBo').value=r.bo;$('fBa').value=r.ba==='non'?'non':'oui';$('fSq').value=r.sq==='non'?'non':'oui';$('fComment').value=r.comment||'';
+  $('ferr').textContent='';$('delBtn').hidden=false;$('delBtn').textContent='Supprimer';$('delBtn').classList.remove('armed');
+  render();
+  $('form').scrollIntoView({behavior:'smooth',block:'nearest'});$('fMontant').focus({preventScroll:true});
+}
+function toast(m){const t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,2600)}
+async function save(e){
+  e.preventDefault();
+  const err=m=>{$('ferr').textContent=m};
+  if(!db)return err('Enregistrement indisponible : ouvrez la page avec votre compte.');
+  const d={date:$('fDate').value,profile:$('fProf').value.trim(),client:$('fClient').value.trim(),cda:$('fCda').value.trim(),
+    montant:Math.round(parseFloat($('fMontant').value)*100)/100,bo:$('fBo').value,ba:$('fBa').value,sq:$('fSq').value,comment:$('fComment').value.trim()};
+  if(!d.date||!d.profile)return err('Renseignez la date et le commercial.');
+  if(!/^\d+$/.test(d.client)||!/^\d+$/.test(d.cda))return err('Les fiches client et CDA doivent être des numéros.');
+  if(!isFinite(d.montant)||d.montant<0)return err('Le montant doit être un nombre positif.');
+  const dup=S.rows.find(r=>r.cda===d.cda&&r.id!==S.edit);
+  if(dup&&!S.edit)return err(`La fiche CDA ${d.cda} existe déjà (${fmtFull(dup.date)}, ${dup.profile}). Retrouvez-la par la recherche pour la modifier.`);
+  $('saveBtn').disabled=true;
+  try{
+    const col=db.collection('ventes');
+    if(S.edit){await col.doc(S.edit).update(d);toast('Vente modifiée')}
+    else{let id=d.cda,k=1;while(S.rows.some(r=>r.id===id))id=d.cda+'-'+(++k);d.id=id;await col.doc(id).set(d);toast('Vente ajoutée')}
+    if(d.date<range()[0]||d.date>range()[1]){S.anchor=d.date;if(S.mode==='range'){S.from=d.date;S.to=d.date}}
+    resetForm();
+  }catch(x){err('Échec de l\'enregistrement : '+(x&&x.message||x))}
+  $('saveBtn').disabled=false;render();
+}
+async function del(){
+  if(!S.edit||!db)return;
+  if(!S.armed){S.armed=true;$('delBtn').textContent='Confirmer la suppression';$('delBtn').classList.add('armed');return}
+  try{await db.collection('ventes').doc(S.edit).delete();toast('Vente supprimée');resetForm();render()}
+  catch(x){$('ferr').textContent='Échec de la suppression : '+(x&&x.message||x)}
+}
+async function exportCsv(){
+  const rows=tableRows(range());
+  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const head=['Date','Profile','Fiche Client','Fiche CDA','Montant','BA','SQ','BO','Comment'];
+  const csv='﻿'+[head.map(q).join(';')].concat(rows.map(r=>[r.date,r.profile,r.client,r.cda,String(r.montant).replace('.',','),r.ba,r.sq,r.bo,r.comment].map(q).join(';'))).join('\r\n');
+  if(!dl)return toast('Export indisponible dans cette vue');
+  try{await dl.save({filename:'ventes-casablanca.csv',data:csv});toast('Export prêt')}catch(x){if(!x||x.code!=='declined')toast('Export impossible')}
+}
+
+/* ---------- events ---------- */
+document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>{
+  const cur=range();S.mode=b.dataset.mode;
+  if(S.mode==='range'){S.from=cur[0];S.to=cur[1]}
+  $('nav').hidden=S.mode==='range';render()});
+$('prev').onclick=()=>shift(-1);$('next').onclick=()=>shift(1);
+$('todayBtn').onclick=()=>{S.anchor=today;if(S.mode==='range'){S.from=addDays(today,-29);S.to=today}render()};
+$('dFrom').onchange=e=>{if(e.target.value){S.from=e.target.value;render()}};
+$('dTo').onchange=e=>{if(e.target.value){S.to=e.target.value;render()}};
+$('fProfile').onchange=e=>{S.profile=e.target.value;S.limit=60;render()};
+$('fStatus').onchange=e=>{S.status=e.target.value;S.limit=60;render()};
+$('search').oninput=e=>{S.q=e.target.value;S.limit=60;drawTable(range())};
+$('rankMore').onclick=()=>{S.showAll=!S.showAll;render()};
+$('tbody').onchange=async e=>{const t=e.target,id=t.dataset&&t.dataset.id;if(!id)return;const f=t.classList.contains('qd')?'date':t.classList.contains('qs')?'bo':null;if(!f||!t.value)return;if(!db)return toast('Modification indisponible');try{await db.collection('ventes').doc(id).update({[f]:t.value});toast(f==='date'?'Date corrigée':'Statut mis à jour')}catch(x){toast('Échec de la modification')}};
+$('tbody').onclick=e=>{const b=e.target.closest('.edit');if(b)startEdit(b.dataset.id)};
+$('form').onsubmit=save;$('cancelBtn').onclick=()=>{resetForm();render()};$('delBtn').onclick=del;$('csvBtn').onclick=exportCsv;
+$('themeBtn').onclick=()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;r.dataset.theme=dark?'light':'dark'};
+$('nav').hidden=false;
+
+resetForm();render();
+
+/* ---------- data ---------- */
+
+/* ---------- stockage local (hors ligne) ---------- */
+const SEED=[{"date": "2026-09-01", "profile": "Romain", "client": "343682", "cda": "354131", "montant": 479.96, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "354131"}, {"date": "2026-09-01", "profile": "Bensaid", "client": "101333", "cda": "354149", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "354149"}, {"date": "2026-09-01", "profile": "Bensaid", "client": "326767", "cda": "354117", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "354117"}, {"date": "2026-09-04", "profile": "Bensaid", "client": "343471", "cda": "355271", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "355271"}, {"date": "2026-09-02", "profile": "SALL", "client": "45426", "cda": "354174", "montant": 0, "ba": "oui", "sq": "non", "bo": "Rejected", "comment": "497,98 SQ faild client remboursé", "id": "354174"}, {"date": "2026-09-04", "profile": "DLeroix", "client": "42957", "cda": "358560", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "358560"}, {"date": "2026-09-07", "profile": "Bensaid", "client": "326236", "cda": "358622", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "358622"}, {"date": "2026-09-07", "profile": "SALL", "client": "353187", "cda": "358648", "montant": 495.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "358648"}, {"date": "2026-09-07", "profile": "SALL", "client": "326853", "cda": "358570", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "valider par BO", "id": "358570"}, {"date": "2026-09-07", "profile": "Bensaid", "client": "352688", "cda": "358656", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "valider le 01/09", "id": "358656"}, {"date": "2026-09-09", "profile": "Bensaid", "client": "352774", "cda": "358711", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "358711"}, {"date": "2026-09-08", "profile": "SALL", "client": "352823", "cda": "358709", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "358709"}, {"date": "2026-09-08", "profile": "DLeroix", "client": "43004", "cda": "358719", "montant": 0, "ba": "oui", "sq": "non", "bo": "Rejected", "comment": "95,96  SQ faild client remboursé", "id": "358719"}, {"date": "2026-09-11", "profile": "Bensaid", "client": "44094", "cda": "358980", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "valider le 01/10", "id": "358980"}, {"date": "2026-09-09", "profile": "SALL", "client": "306538", "cda": "358855", "montant": 195.96, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "358855"}, {"date": "2026-09-09", "profile": "DLeroix", "client": "254102", "cda": "354020", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "354020"}, {"date": "2026-09-09", "profile": "Romain", "client": "350284", "cda": "358625", "montant": 479.97, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "358625"}, {"date": "2026-09-11", "profile": "Bensaid", "client": "304623", "cda": "358955", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "valider le 01/11", "id": "358955"}, {"date": "2026-09-10", "profile": "DLandemard", "client": "304992", "cda": "358927", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "358927"}, {"date": "2026-09-10", "profile": "SALL", "client": "43022", "cda": "358863", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "358863"}, {"date": "2026-09-10", "profile": "SALL", "client": "307224", "cda": "358896", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "358896"}, {"date": "2026-09-10", "profile": "OLABE", "client": "42641", "cda": "358870", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "358870"}, {"date": "2026-09-10", "profile": "Romain", "client": "42004", "cda": "355236", "montant": 479.97, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "355236"}, {"date": "2026-09-14", "profile": "Bensaid", "client": "349857", "cda": "359044", "montant": 295.55, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "359044"}, {"date": "2026-09-15", "profile": "Bensaid", "client": "347649", "cda": "360121", "montant": 895.96, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "360121"}, {"date": "2026-09-14", "profile": "SALL", "client": "352656", "cda": "359018", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "359018"}, {"date": "2026-09-14", "profile": "SALL", "client": "308228", "cda": "360079", "montant": 299.55, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "360079"}, {"date": "2026-09-14", "profile": "Cdasilva", "client": "43185", "cda": "358801", "montant": 0, "ba": "non", "sq": "non", "bo": "Waiting", "comment": "495,9  virement en attente", "id": "358801"}, {"date": "2026-09-14", "profile": "DLeroix", "client": "80568", "cda": "359075", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "359075"}, {"date": "2026-09-14", "profile": "OLABE", "client": "352764", "cda": "359024", "montant": 0, "ba": "oui", "sq": "oui", "bo": "Rejected", "comment": "495,9  SQ faild client remboursé   (EIbrahim)", "id": "359024"}, {"date": "2026-09-17", "profile": "Bensaid", "client": "304225", "cda": "366153", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "366153"}, {"date": "2026-09-15", "profile": "SALL", "client": "300198", "cda": "360145", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "360145"}, {"date": "2026-09-15", "profile": "OLABE", "client": "293307", "cda": "360202", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "360202"}, {"date": "2026-09-28", "profile": "Bensaid", "client": "304707", "cda": "572620", "montant": 299.55, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "572620"}, {"date": "2026-09-16", "profile": "DLeroix", "client": "281122", "cda": "360226", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "360226"}, {"date": "2026-09-16", "profile": "OLABE", "client": "292993", "cda": "360236", "montant": 999.96, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "360236"}, {"date": "2026-09-16", "profile": "OLABE", "client": "293293", "cda": "360272", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "360272"}, {"date": "2026-09-30", "profile": "Bensaid", "client": "278146", "cda": "572685", "montant": 92.4, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "572685"}, {"date": "2026-09-01", "profile": "Bensaid", "client": "253863", "cda": "354105", "montant": 0, "ba": "oui", "sq": "oui", "bo": "Matrice", "comment": "98,75  SQ fait valider sur matrice le 19/10", "id": "354105"}, {"date": "2026-09-17", "profile": "SALL", "client": "287733", "cda": "366145", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "366145"}, {"date": "2026-09-17", "profile": "Cdasilva", "client": "43672", "cda": "358956", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CDasilva (Cdurant)", "id": "358956"}, {"date": "2026-09-17", "profile": "DLeroix", "client": "297838", "cda": "366107", "montant": 895.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "366107"}, {"date": "2026-09-08", "profile": "Bensaid", "client": "353456", "cda": "358646", "montant": 0, "ba": "oui", "sq": "oui", "bo": "Matrice", "comment": "495,9  SQ fait valider sur matrice le 19/10", "id": "358646"}, {"date": "2026-09-18", "profile": "SALL", "client": "300198", "cda": "366158", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "366158"}, {"date": "2026-09-18", "profile": "Cdasilva", "client": "281812", "cda": "366165", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "366165"}, {"date": "2026-09-22", "profile": "Cdasilva", "client": "284933", "cda": "404611", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404611"}, {"date": "2026-09-22", "profile": "Cdasilva", "client": "105704", "cda": "404628", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404628"}, {"date": "2026-09-22", "profile": "Cdasilva", "client": "353347", "cda": "404640", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404640"}, {"date": "2026-09-22", "profile": "OLABE", "client": "353496", "cda": "366184", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "366184"}, {"date": "2026-09-22", "profile": "Carlo", "client": "315883", "cda": "366103", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "366103"}, {"date": "2026-09-23", "profile": "SALL", "client": "297129", "cda": "404756", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404756"}, {"date": "2026-09-23", "profile": "Cdasilva", "client": "300244", "cda": "404741", "montant": 595.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404741"}, {"date": "2026-09-23", "profile": "Cdasilva", "client": "317244", "cda": "404780", "montant": 595.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404780"}, {"date": "2026-09-23", "profile": "Cdasilva", "client": "291436", "cda": "355199", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CDasilva (Emartin)", "id": "355199"}, {"date": "2026-09-23", "profile": "DLeroix", "client": "300940", "cda": "404647", "montant": 595.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404647"}, {"date": "2026-09-23", "profile": "OLABE", "client": "105694", "cda": "404734", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404734"}, {"date": "2026-09-23", "profile": "Carlo", "client": "301933", "cda": "404654", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404654"}, {"date": "2026-09-24", "profile": "Cdasilva", "client": "347937", "cda": "360095", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "360095"}, {"date": "2026-09-24", "profile": "OLABE", "client": "300615", "cda": "404818", "montant": 595.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404818"}, {"date": "2026-09-24", "profile": "OLABE", "client": "291338", "cda": "404783", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404783"}, {"date": "2026-09-24", "profile": "Carlo", "client": "295305", "cda": "404871", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404871"}, {"date": "2026-09-24", "profile": "Carlo", "client": "295785", "cda": "404883", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404883"}, {"date": "2026-09-24", "profile": "Carlo", "client": "297205", "cda": "404802", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404802"}, {"date": "2026-09-25", "profile": "Cdasilva", "client": "349901", "cda": "404961", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404961"}, {"date": "2026-09-25", "profile": "Cdasilva", "client": "317398", "cda": "404935", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404935"}, {"date": "2026-09-25", "profile": "LAlexendre", "client": "300051", "cda": "404920", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404920"}, {"date": "2026-09-25", "profile": "OLABE", "client": "300701", "cda": "404909", "montant": 595.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404909"}, {"date": "2026-09-25", "profile": "OLABE", "client": "281144", "cda": "404951", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404951"}, {"date": "2026-09-25", "profile": "Romain", "client": "354063", "cda": "360192", "montant": 695.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "360192"}, {"date": "2026-09-28", "profile": "SALL", "client": "73601", "cda": "572607", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "572607"}, {"date": "2026-09-28", "profile": "SALL", "client": "72892", "cda": "572617", "montant": 299.55, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "572617"}, {"date": "2026-09-28", "profile": "Cdasilva", "client": "316694", "cda": "405001", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "405001"}, {"date": "2026-09-28", "profile": "Cdasilva", "client": "316973", "cda": "404977", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404977"}, {"date": "2026-09-28", "profile": "Cdasilva", "client": "303019", "cda": "404998", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404998"}, {"date": "2026-09-28", "profile": "DLeroix", "client": "301389", "cda": "572570", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "572570"}, {"date": "2026-09-28", "profile": "OLABE", "client": "399507", "cda": "572619", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "572619"}, {"date": "2026-09-16", "profile": "Bensaid", "client": "348024", "cda": "360230", "montant": 0, "ba": "oui", "sq": "oui", "bo": "Matrice", "comment": "98,75   SQ fait mais pas valider par BO", "id": "360230"}, {"date": "2026-09-29", "profile": "SALL", "client": "72425", "cda": "572623", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "572623"}, {"date": "2026-09-29", "profile": "Cdasilva", "client": "281718", "cda": "572689", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "572689"}, {"date": "2026-09-29", "profile": "Cdasilva", "client": "278235", "cda": "572629", "montant": 0, "ba": "oui", "sq": "non", "bo": "Rejected", "comment": "95,9 sq a refaire par soumia", "id": "572629"}, {"date": "2026-09-29", "profile": "Jxavier", "client": "399519", "cda": "572666", "montant": 595.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "572666"}, {"date": "2026-09-29", "profile": "Carlo", "client": "302139", "cda": "572635", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "572635"}, {"date": "2026-09-30", "profile": "SALL", "client": "278693", "cda": "572720", "montant": 299.55, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "572720"}, {"date": "2026-09-30", "profile": "SALL", "client": "278693", "cda": "572728", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "572728"}, {"date": "2026-09-30", "profile": "SALL", "client": "297145", "cda": "404744", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404744"}, {"date": "2026-09-30", "profile": "Clara", "client": "301265", "cda": "572705", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "572705"}, {"date": "2026-09-30", "profile": "Clara", "client": "298556", "cda": "572764", "montant": 0, "ba": "oui", "sq": "oui", "bo": "Rejected", "comment": "98,75 clte demande remboursement le lendemain du SQ", "id": "572764"}, {"date": "2026-09-30", "profile": "Cdasilva", "client": "211803", "cda": "572717", "montant": 295.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "572717"}, {"date": "2026-09-30", "profile": "Cdasilva", "client": "278235", "cda": "572749", "montant": 479.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "572749"}, {"date": "2026-09-30", "profile": "OLABE", "client": "293278", "cda": "404936", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "", "id": "404936"}, {"date": "2026-09-16", "profile": "Bensaid", "client": "353513", "cda": "360278", "montant": 0, "ba": "oui", "sq": "non", "bo": "Rejected", "comment": "98,75 Client veut etre remboursé", "id": "360278"}, {"date": "2026-10-01", "profile": "Mlea", "client": "299668", "cda": "572767", "montant": 462, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "virement recu", "id": "572767"}, {"date": "2026-10-01", "profile": "DLeroix", "client": "314285", "cda": "572791", "montant": 497.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "572791"}, {"date": "2026-10-01", "profile": "SALL", "client": "287733", "cda": "572798", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "572798"}, {"date": "2026-10-02", "profile": "Jxavier", "client": "302432", "cda": "572822", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "572822"}, {"date": "2026-10-02", "profile": "Cdasilva", "client": "298625", "cda": "572861", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "572861"}, {"date": "2026-10-02", "profile": "OLABE", "client": "294780", "cda": "572864", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "572864"}, {"date": "2026-10-02", "profile": "OLABE", "client": "294828", "cda": "572660", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "572660"}, {"date": "2026-10-02", "profile": "Cdasilva", "client": "298068", "cda": "572867", "montant": 295.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "572867"}, {"date": "2026-10-02", "profile": "Cdasilva", "client": "294139", "cda": "572877", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "double paiment remboursement envoyé", "id": "572877"}, {"date": "2026-10-02", "profile": "Jxavier", "client": "302064", "cda": "572908", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "572908"}, {"date": "2026-10-05", "profile": "SALL", "client": "72380", "cda": "404973", "montant": 295.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "404973"}, {"date": "2026-10-05", "profile": "OLABE", "client": "299695", "cda": "572714", "montant": 462, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "virement recu", "id": "572714"}, {"date": "2026-10-05", "profile": "OLABE", "client": "298933", "cda": "572810", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "572810"}, {"date": "2026-10-05", "profile": "Mlea", "client": "399786", "cda": "572866", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "572866"}, {"date": "2026-10-05", "profile": "Bensaid", "client": "317389", "cda": "572928", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "572928"}, {"date": "2026-10-05", "profile": "Mlea", "client": "400029", "cda": "572944", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "572944"}, {"date": "2026-10-05", "profile": "Clara", "client": "302512", "cda": "572946", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "572946"}, {"date": "2026-10-05", "profile": "Clara", "client": "298324", "cda": "572953", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "572953"}, {"date": "2026-10-05", "profile": "Bensaid", "client": "303535", "cda": "572963", "montant": 0, "ba": "oui", "sq": "oui", "bo": "Rejected", "comment": "394,80 € (Curatelle) remboursement", "id": "572963"}, {"date": "2026-10-05", "profile": "Clara", "client": "302389", "cda": "572990", "montant": 498.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "572990"}, {"date": "2026-10-06", "profile": "Bensaid", "client": "303466", "cda": "570543", "montant": 369.6, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "virement recu comercial Issue", "id": "570543"}, {"date": "2026-10-06", "profile": "Cdasilva", "client": "281981", "cda": "572859", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "572859"}, {"date": "2026-10-06", "profile": "Bensaid", "client": "396985", "cda": "573018", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573018"}, {"date": "2026-10-06", "profile": "LAlexendre", "client": "75966", "cda": "573021", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573021"}, {"date": "2026-10-06", "profile": "ECarcia", "client": "298214", "cda": "573027", "montant": 299.55, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573027"}, {"date": "2026-10-06", "profile": "LAlexendre", "client": "101981", "cda": "573029", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573029"}, {"date": "2026-10-06", "profile": "ECarcia", "client": "294792", "cda": "573044", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573044"}, {"date": "2026-10-06", "profile": "ECarcia", "client": "298506", "cda": "573063", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573063"}, {"date": "2026-10-06", "profile": "Bensaid", "client": "230909", "cda": "573094", "montant": 394.8, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573094"}, {"date": "2026-10-06", "profile": "OLABE", "client": "395794", "cda": "573105", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573105"}, {"date": "2026-10-06", "profile": "Clara", "client": "101946", "cda": "573106", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573106"}, {"date": "2026-10-06", "profile": "LAlexendre", "client": "298872", "cda": "573109", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573109"}, {"date": "2026-10-06", "profile": "LAlexendre", "client": "78093", "cda": "573118", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573118"}, {"date": "2026-10-07", "profile": "DLandemard", "client": "350663", "cda": "344054", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "344054"}, {"date": "2026-10-07", "profile": "Bensaid", "client": "86914", "cda": "573045", "montant": 369.6, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "virement recu", "id": "573045"}, {"date": "2026-10-07", "profile": "ECarcia", "client": "294785", "cda": "573129", "montant": 695.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573129"}, {"date": "2026-10-07", "profile": "ECarcia", "client": "299135", "cda": "573142", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573142"}, {"date": "2026-10-07", "profile": "OLABE", "client": "404311", "cda": "573144", "montant": 595.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573144"}, {"date": "2026-10-07", "profile": "ECarcia", "client": "298612", "cda": "573148", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573148"}, {"date": "2026-10-07", "profile": "Carlo", "client": "398501", "cda": "573154", "montant": 595.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573154"}, {"date": "2026-10-07", "profile": "DLeroix", "client": "308764", "cda": "573168", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573168"}, {"date": "2026-10-07", "profile": "SALL", "client": "102898", "cda": "573179", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573179"}, {"date": "2026-10-07", "profile": "Jxavier", "client": "299584", "cda": "573211", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573211"}, {"date": "2026-10-07", "profile": "DLeroix", "client": "278095", "cda": "573225", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573225"}, {"date": "2026-10-07", "profile": "Bensaid", "client": "73385", "cda": "573242", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573242"}, {"date": "2026-10-08", "profile": "Cdasilva", "client": "299727", "cda": "573251", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573251"}, {"date": "2026-10-08", "profile": "Clara", "client": "101886", "cda": "573254", "montant": 595.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573254"}, {"date": "2026-10-08", "profile": "Bensaid", "client": "73103", "cda": "573404", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573404"}, {"date": "2026-10-08", "profile": "JGore", "client": "83962", "cda": "573409", "montant": 295.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573409"}, {"date": "2026-10-08", "profile": "Cdasilva", "client": "315920", "cda": "573428", "montant": 595.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573428"}, {"date": "2026-10-08", "profile": "Bensaid", "client": "226799", "cda": "573438", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573438"}, {"date": "2026-10-08", "profile": "Mlea", "client": "396568", "cda": "573454", "montant": 295.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573454"}, {"date": "2026-10-08", "profile": "Bensaid", "client": "76127", "cda": "573455", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573455"}, {"date": "2026-10-09", "profile": "Cdasilva", "client": "298163", "cda": "573470", "montant": 295.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573470"}, {"date": "2026-10-09", "profile": "Mlea", "client": "362942", "cda": "573481", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573481"}, {"date": "2026-10-09", "profile": "Bensaid", "client": "73225", "cda": "573485", "montant": 299.55, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "SQ refait a la demande du BO", "id": "573485"}, {"date": "2026-10-09", "profile": "DLandemard", "client": "74988", "cda": "573497", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573497"}, {"date": "2026-10-09", "profile": "Cdasilva", "client": "303019", "cda": "573584", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "1er paiment le 28/09 BA fait le 12 (404998)", "id": "573584"}, {"date": "2026-10-09", "profile": "Clara", "client": "78646", "cda": "573518", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "prb sur le nom de la clte", "id": "573518"}, {"date": "2026-10-09", "profile": "Bensaid", "client": "281643", "cda": "573500", "montant": 0, "ba": "oui", "sq": "oui", "bo": "Rejected", "comment": "virement recu clte a bloquer le virement remboursement en cour", "id": "573500"}, {"date": "2026-10-09", "profile": "ECarcia", "client": "101823", "cda": "573532", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "SQ refait a la demande du BO", "id": "573532"}, {"date": "2026-10-09", "profile": "OLABE", "client": "573377", "cda": "573537", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "SQ refait a la demande du BO", "id": "573537"}, {"date": "2026-10-12", "profile": "SALL", "client": "101869", "cda": "573153", "montant": 184.8, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "virement recu", "id": "573153"}, {"date": "2026-10-12", "profile": "Cdasilva", "client": "298068", "cda": "573572", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573572"}, {"date": "2026-10-12", "profile": "SALL", "client": "83822", "cda": "573596", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573596"}, {"date": "2026-10-12", "profile": "Mlea", "client": "363269", "cda": "573611", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573611"}, {"date": "2026-10-12", "profile": "DLeroix", "client": "326996", "cda": "573599", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "SQ refait adresse eroné", "id": "573599"}, {"date": "2026-10-12", "profile": "ECarcia", "client": "327576", "cda": "573587", "montant": 299.55, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573587"}, {"date": "2026-10-12", "profile": "SALL", "client": "326853", "cda": "404911", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "404911"}, {"date": "2026-10-12", "profile": "Bensaid", "client": "400056", "cda": "573629", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573629"}, {"date": "2026-10-12", "profile": "Cdasilva", "client": "398091", "cda": "573661", "montant": 295.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573661"}, {"date": "2026-10-12", "profile": "Carlo", "client": "46948", "cda": "573677", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573677"}, {"date": "2026-10-12", "profile": "Bensaid", "client": "306138", "cda": "573697", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573697"}, {"date": "2026-10-12", "profile": "OLABE", "client": "573372", "cda": "573604", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573604"}, {"date": "2026-10-13", "profile": "Carlo", "client": "349118", "cda": "575268", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "575268"}, {"date": "2026-10-13", "profile": "OLABE", "client": "281144", "cda": "573671", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573671"}, {"date": "2026-10-13", "profile": "DLandemard", "client": "229015", "cda": "575287", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "575287"}, {"date": "2026-10-13", "profile": "SALL", "client": "69847", "cda": "575265", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "575265"}, {"date": "2026-10-13", "profile": "Cdasilva", "client": "397065", "cda": "575304", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "575304"}, {"date": "2026-10-13", "profile": "Bensaid", "client": "328405", "cda": "575369", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "575369"}, {"date": "2026-10-13", "profile": "Bensaid", "client": "303976", "cda": "575372", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "575372"}, {"date": "2026-10-14", "profile": "OLABE", "client": "291338", "cda": "573527", "montant": 295.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573527"}, {"date": "2026-10-14", "profile": "DLandemard", "client": "400328", "cda": "575363", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "575363"}, {"date": "2026-10-14", "profile": "WRoze", "client": "398020", "cda": "575298", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "575298"}, {"date": "2026-10-14", "profile": "Bensaid", "client": "353456", "cda": "358646", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Reported", "comment": "Virement encaisser le 09/09 valider le 14/10 497,98 Euro", "id": "358646-2"}, {"date": "2026-10-14", "profile": "Cdasilva", "client": "343072", "cda": "575477", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "575477"}, {"date": "2026-10-14", "profile": "Mlea", "client": "102042", "cda": "573452", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573452"}, {"date": "2026-10-14", "profile": "Cdasilva", "client": "101825", "cda": "575484", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "575484"}, {"date": "2026-10-15", "profile": "ECarcia", "client": "575498", "cda": "294270", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "294270"}, {"date": "2026-10-15", "profile": "SALL", "client": "105503", "cda": "573495", "montant": 646.8, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "virement recu", "id": "573495"}, {"date": "2026-10-15", "profile": "RMarvel", "client": "326454", "cda": "575569", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "575569"}, {"date": "2026-10-15", "profile": "SDaniel", "client": "305458", "cda": "575591", "montant": 295.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "575591"}, {"date": "2026-10-15", "profile": "Bensaid", "client": "220839", "cda": "575592", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "575592"}, {"date": "2026-10-15", "profile": "OLABE", "client": "293293", "cda": "575587", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "575587"}, {"date": "2026-10-15", "profile": "Carlo", "client": "352737", "cda": "575607", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "575607"}, {"date": "2026-10-15", "profile": "Carlo", "client": "396785", "cda": "575629", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "575629"}, {"date": "2026-10-15", "profile": "Bensaid", "client": "303999", "cda": "575636", "montant": 295.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "575636"}, {"date": "2026-10-16", "profile": "Cdasilva", "client": "257956", "cda": "575653", "montant": 595.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "SQ a refaire il contient tout l appel pas que le SQ Refait", "id": "575653"}, {"date": "2026-10-16", "profile": "Bensaid", "client": "306010", "cda": "576419", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "576419"}, {"date": "2026-10-16", "profile": "SDaniel", "client": "328029", "cda": "576430", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "576430"}, {"date": "2026-10-16", "profile": "Carlo", "client": "363040", "cda": "575540", "montant": 554.4, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "virement recu", "id": "575540"}, {"date": "2026-10-17", "profile": "Bensaid", "client": "352822", "cda": "575499", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "paiment le Sam 17/10", "id": "575499"}, {"date": "2026-10-19", "profile": "Cdasilva", "client": "306328", "cda": "576842", "montant": 554.4, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "virement recu", "id": "576842"}, {"date": "2026-10-19", "profile": "Bensaid", "client": "253863", "cda": "354105", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Reported", "comment": "vente du 01/09 validé du 19/10", "id": "354105-2"}, {"date": "2026-10-19", "profile": "SALL", "client": "294145", "cda": "576412", "montant": 554.4, "ba": "oui", "sq": "oui", "bo": "Rejected", "comment": "virement recu et Clt rembourssé", "id": "576412"}, {"date": "2026-10-19", "profile": "Mlea", "client": "315606", "cda": "576929", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "576929"}, {"date": "2026-10-19", "profile": "Cdasilva", "client": "281812", "cda": "576933", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "576933"}, {"date": "2026-10-19", "profile": "SALL", "client": "101741", "cda": "576943", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "576943"}, {"date": "2026-10-19", "profile": "DLeroix", "client": "281122", "cda": "576950", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "576950"}, {"date": "2026-10-19", "profile": "Carlo", "client": "123072", "cda": "460858", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "460858"}, {"date": "2026-10-19", "profile": "Jxavier", "client": "397537", "cda": "576936", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "576936"}, {"date": "2026-10-19", "profile": "Bensaid", "client": "76540", "cda": "576979", "montant": 295.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "576979"}, {"date": "2026-10-19", "profile": "Cdasilva", "client": "291365", "cda": "576925", "montant": 369, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "virement recu", "id": "576925"}, {"date": "2026-10-20", "profile": "Cdasilva", "client": "105734", "cda": "577039", "montant": 595.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "577039"}, {"date": "2026-10-20", "profile": "Bensaid", "client": "349857", "cda": "577037", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "577037"}, {"date": "2026-10-20", "profile": "LAlexendre", "client": "300051", "cda": "577041", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "577041"}, {"date": "2026-10-20", "profile": "Mlea", "client": "38392", "cda": "577055", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "577055"}, {"date": "2026-10-20", "profile": "Jxavier", "client": "298319", "cda": "577070", "montant": 295.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "577070"}, {"date": "2026-10-20", "profile": "Carlo", "client": "250585", "cda": "364995", "montant": 595.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "364995"}, {"date": "2026-10-20", "profile": "Jxavier", "client": "294163", "cda": "577140", "montant": 295.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "577140"}, {"date": "2026-10-20", "profile": "Milena", "client": "352787", "cda": "577123", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "577123"}, {"date": "2026-10-20", "profile": "LAlexendre", "client": "347500", "cda": "577065", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "577065"}, {"date": "2026-10-21", "profile": "Jxavier", "client": "291474", "cda": "573459", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "573459"}, {"date": "2026-10-21", "profile": "ECarcia", "client": "366764", "cda": "577255", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "577255"}, {"date": "2026-10-21", "profile": "DRuz", "client": "325941", "cda": "577302", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "577302"}, {"date": "2026-10-21", "profile": "Bensaid", "client": "368606", "cda": "577353", "montant": 0, "ba": "oui", "sq": "non", "bo": "Waiting", "comment": "clt injooinable a relancer pour SQ sur son GSM 395,90", "id": "577353"}, {"date": "2026-10-22", "profile": "ECarcia", "client": "42172", "cda": "577396", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "577396"}, {"date": "2026-10-22", "profile": "SALL", "client": "308866", "cda": "577433", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "577433"}, {"date": "2026-10-22", "profile": "OLABE", "client": "33063", "cda": "577431", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "577431"}, {"date": "2026-10-23", "profile": "Cdasilva", "client": "250614", "cda": "577461", "montant": 295.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "577461"}, {"date": "2026-10-23", "profile": "Clara", "client": "303685", "cda": "577575", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "577575"}, {"date": "2026-10-23", "profile": "Cdasilva", "client": "296021", "cda": "577621", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "577621"}, {"date": "2026-10-23", "profile": "OLABE", "client": "45362", "cda": "577662", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "577662"}, {"date": "2026-10-26", "profile": "OLABE", "client": "397079", "cda": "581167", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581167"}, {"date": "2026-10-26", "profile": "Bensaid", "client": "396811", "cda": "581177", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581177"}, {"date": "2026-10-26", "profile": "OLABE", "client": "395984", "cda": "581195", "montant": 595.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581195"}, {"date": "2026-10-26", "profile": "Carlo", "client": "46948", "cda": "581266", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581266"}, {"date": "2026-10-26", "profile": "SALL", "client": "302273", "cda": "581295", "montant": 198.79, "ba": "oui", "sq": "", "bo": "Accepted", "comment": "CB", "id": "581295"}, {"date": "2026-10-26", "profile": "ECarcia", "client": "398240", "cda": "581303", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581303"}, {"date": "2026-10-26", "profile": "LAlexendre", "client": "396287", "cda": "581335", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581335"}, {"date": "2026-10-26", "profile": "SALL", "client": "302674", "cda": "581352", "montant": 295.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581352"}, {"date": "2026-10-26", "profile": "MMado", "client": "342431", "cda": "581286", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581286"}, {"date": "2026-10-27", "profile": "OLABE", "client": "397310", "cda": "581362", "montant": 595.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581362"}, {"date": "2026-10-27", "profile": "Cdasilva", "client": "324853", "cda": "581356", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581356"}, {"date": "2026-10-27", "profile": "SALL", "client": "72380", "cda": "581281", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581281"}, {"date": "2026-10-27", "profile": "OLABE", "client": "350408", "cda": "581432", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581432"}, {"date": "2026-10-27", "profile": "SALL", "client": "72898", "cda": "581458", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581458"}, {"date": "2026-10-27", "profile": "SALL", "client": "306132", "cda": "581434", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581434"}, {"date": "2026-10-27", "profile": "OLABE", "client": "350267", "cda": "581480", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581480"}, {"date": "2026-10-28", "profile": "Cdasilva", "client": "316973", "cda": "581507", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581507"}, {"date": "2026-10-28", "profile": "Clara", "client": "366790", "cda": "581511", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581511"}, {"date": "2026-10-28", "profile": "Cdasilva", "client": "281718", "cda": "581520", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581520"}, {"date": "2026-10-28", "profile": "Cdasilva", "client": "396561", "cda": "581567", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581567"}, {"date": "2026-10-28", "profile": "Cdasilva", "client": "271556", "cda": "581423", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581423"}, {"date": "2026-10-28", "profile": "Cdasilva", "client": "328535", "cda": "581545", "montant": 495.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581545"}, {"date": "2026-10-28", "profile": "Cdasilva", "client": "278235", "cda": "572629", "montant": 95.9, "ba": "oui", "sq": "oui", "bo": "Reported", "comment": "paiment le mois dernier SQ valider auj et valider par BO", "id": "572629-2"}, {"date": "2026-10-28", "profile": "OLABE", "client": "307426", "cda": "581584", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581584"}, {"date": "2026-10-28", "profile": "Cdasilva", "client": "324615", "cda": "581606", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581606"}, {"date": "2026-10-28", "profile": "SALL", "client": "306538", "cda": "572890", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "572890"}, {"date": "2026-10-28", "profile": "Bensaid", "client": "343086", "cda": "581613", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581613"}, {"date": "2026-10-29", "profile": "Clara", "client": "580879", "cda": "581676", "montant": 195.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581676"}, {"date": "2026-10-29", "profile": "MMado", "client": "248349", "cda": "581519", "montant": 395.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581519"}, {"date": "2026-10-01", "profile": "Bensaid", "client": "352688", "cda": "358656", "montant": 497.98, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "vente Marvel passer a bensaid valider auj vendu le 07/09", "id": "358656-2"}, {"date": "2026-10-29", "profile": "Carlo", "client": "397358", "cda": "581258", "montant": 595.9, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581258"}, {"date": "2026-10-29", "profile": "ECarcia", "client": "580931", "cda": "581785", "montant": 98.75, "ba": "oui", "sq": "oui", "bo": "Waiting", "comment": "CB", "id": "581785"}, {"date": "2026-10-29", "profile": "SALL", "client": "301237", "cda": "581701", "montant": 198.79, "ba": "oui", "sq": "oui", "bo": "Accepted", "comment": "CB", "id": "581701"}];
+const KEY='casablanca_ventes_v1';
+let mem=null;
+function loadAll(){
+  try{const t=localStorage.getItem(KEY);if(t)return JSON.parse(t)}catch(e){}
+  return mem||SEED.map(r=>({...r}));
+}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){mem=store;toast('Stockage du navigateur indisponible : pensez à la sauvegarde JSON')}}
+let store=loadAll();const subs=[];
+const notify=()=>subs.forEach(f=>f(snapshot()));
+const snapshot=()=>({docs:store.map(r=>({id:r.id,data:()=>({...r})}))});
+db={collection(){return{
+  doc(id){return{
+    async set(d){const i=store.findIndex(r=>r.id===id);if(i>=0)store[i]={...d};else store.push({...d});persist();notify()},
+    async update(d){const i=store.findIndex(r=>r.id===id);if(i<0)throw new Error('Fiche introuvable');store[i]={...store[i],...d};persist();notify()},
+    async delete(){store=store.filter(r=>r.id!==id);persist();notify()}}},
+  onSnapshot(fn){subs.push(fn);fn(snapshot())}}}};
+dl={async save({filename,data}){
+  const a=document.createElement('a');const u=URL.createObjectURL(new Blob([data],{type:'text/plain;charset=utf-8'}));
+  a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}};
+
+$('bkBtn').onclick=()=>dl.save({filename:'sauvegarde-ventes-'+today+'.json',data:JSON.stringify(store,null,1)}).then(()=>toast('Sauvegarde téléchargée'));
+/* ---------- import en masse ---------- */
+const IMP={rows:[],bad:0,info:[],armed:false,err:''};
+const BO_MAP={accepted:'Accepted',rejected:'Rejected',waiting:'Waiting',matrice:'Matrice',reported:'Reported','virement waiting':'Waiting',sq:'Waiting'};
+const ALIAS={sbensaid:'Bensaid',asall:'SALL',scarlo:'Carlo',cclara:'Clara','le roix':'DLeroix'};
+const HN={date:['date'],profile:['profile','profil','commercial'],client:['fiche client','client'],cda:['fiche cda','cda'],montant:['montant'],ba:['ba'],sq:['sq'],bo:['bo','statut','statut bo'],comment:['comment','commentaire']};
+const clean=v=>v==null?'':String(v).trim();
+function normDate(v){
+  if(v==null||v==='')return'';
+  if(typeof v==='number'&&v>20000&&v<80000){const d=new Date(Math.round((v-25569)*864e5));return d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate())}
+  const s=clean(v);let m;
+  if(m=s.match(/^(\d{4})-(\d{2})-(\d{2})/))return m[1]+'-'+m[2]+'-'+m[3];
+  if(m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/)){let y=+m[3];if(y<100)y+=2000;return y+'-'+pad(+m[2])+'-'+pad(+m[1])}
+  return'';
+}
+function mapRow(o){
+  const date=normDate(o.date),cda=clean(o.cda).replace(/\.0+$/,'');
+  if(!date||!/^\d+$/.test(cda))return null;
+  let montant=typeof o.montant==='number'?o.montant:parseFloat(clean(o.montant).replace(/\s/g,'').replace(',','.'));
+  if(!isFinite(montant))montant=0;
+  let p=clean(o.profile).replace(/:$/,'')||'Inconnu';
+  if(ALIAS[p.toLowerCase()])p=ALIAS[p.toLowerCase()];
+  const known=S.rows.find(r=>r.profile.toLowerCase()===p.toLowerCase());if(known)p=known.profile;
+  const yn=v=>{const s=clean(v).toLowerCase();return s==='non'?'non':s==='oui'?'oui':''};
+  return{date,profile:p,client:clean(o.client).replace(/\.0+$/,''),cda,montant:Math.round(montant*100)/100,ba:yn(o.ba),sq:yn(o.sq),bo:BO_MAP[clean(o.bo).toLowerCase()]||'Waiting',comment:clean(o.comment)};
+}
+function fromMatrix(m){
+  let hi=-1,cols;
+  for(let i=0;i<Math.min(m.length,10);i++){const h=(m[i]||[]).map(x=>clean(x).toLowerCase());if(h.includes('date')&&(h.includes('fiche cda')||h.includes('cda'))){hi=i;cols=h;break}}
+  if(hi<0)return{rows:[],bad:0,noHeader:true};
+  const ix={};for(const k in HN)ix[k]=cols.findIndex(c=>HN[k].includes(c));
+  const rows=[];let bad=0;
+  for(let i=hi+1;i<m.length;i++){const r=m[i];if(!r||!r.some(x=>clean(x)!==''))continue;
+    const o={};for(const k in ix)o[k]=ix[k]>=0?r[ix[k]]:'';
+    const row=mapRow(o);row?rows.push(row):bad++}
+  return{rows,bad};
+}
+function parseCsv(t){
+  t=t.replace(/^﻿/,'');const first=t.split('\n')[0]||'';
+  const dl_=first.includes('\t')?'\t':first.includes(';')?';':',';
+  const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<t.length;i++){const c=t[i];
+    if(q){if(c==='"'){if(t[i+1]==='"'){cur+='"';i++}else q=false}else cur+=c}
+    else if(c==='"')q=true;else if(c===dl_){row.push(cur);cur=''}
+    else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur=''}else if(c!=='\r')cur+=c}
+  if(cur||row.length){row.push(cur);rows.push(row)}return rows;
+}
+async function inflate(u8){const s=new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return new Uint8Array(await new Response(s).arrayBuffer())}
+async function unzip(buf){
+  const dv=new DataView(buf),u8=new Uint8Array(buf),td=new TextDecoder();let e=buf.byteLength-22;
+  while(e>=0&&dv.getUint32(e,true)!==0x06054b50)e--;
+  if(e<0)throw new Error('Fichier Excel illisible.');
+  const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const files={};
+  for(let i=0;i<n&&dv.getUint32(p,true)===0x02014b50;i++){
+    const nl=dv.getUint16(p+28,true),el=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true);
+    files[td.decode(u8.subarray(p+46,p+46+nl))]={method:dv.getUint16(p+10,true),cs:dv.getUint32(p+20,true),lo:dv.getUint32(p+42,true)};
+    p+=46+nl+el+cl}
+  return{get:async name=>{const f=files[name];if(!f)return null;
+    const st=f.lo+30+dv.getUint16(f.lo+26,true)+dv.getUint16(f.lo+28,true),data=u8.subarray(st,st+f.cs);
+    return td.decode(f.method===0?data:await inflate(data))}};
+}
+const colIdx=r=>{let n=0;for(const ch of r.replace(/\d+/g,''))n=n*26+ch.charCodeAt(0)-64;return n-1};
+async function readXlsx(buf){
+  const z=await unzip(buf),dp=new DOMParser(),xml=t=>dp.parseFromString(t,'application/xml');
+  const wb=xml(await z.get('xl/workbook.xml')),rels=xml(await z.get('xl/_rels/workbook.xml.rels')),relMap={};
+  rels.querySelectorAll('Relationship').forEach(r=>relMap[r.getAttribute('Id')]=r.getAttribute('Target'));
+  const sst=[],st=await z.get('xl/sharedStrings.xml');
+  if(st)xml(st).querySelectorAll('si').forEach(si=>sst.push([...si.querySelectorAll('t')].filter(t=>t.parentNode.localName!=='rPh').map(t=>t.textContent).join('')));
+  const out=[];
+  for(const sh of wb.querySelectorAll('sheets > sheet')){
+    const tg=relMap[sh.getAttribute('r:id')]||'';const path=tg.startsWith('/')?tg.slice(1):'xl/'+tg;
+    const raw=await z.get(path);if(!raw)continue;
+    const m=[];
+    xml(raw).querySelectorAll('sheetData > row').forEach(row=>{
+      const arr=[];
+      row.querySelectorAll(':scope > c').forEach(c=>{
+        const t=c.getAttribute('t'),ve=c.querySelector('v');let v;
+        if(t==='inlineStr')v=[...c.querySelectorAll('is t')].map(x=>x.textContent).join('');
+        else if(!ve)v='';
+        else if(t==='s')v=sst[+ve.textContent];
+        else if(t==='str'||t==='e')v=ve.textContent;
+        else if(t==='b')v=ve.textContent==='1';
+        else v=parseFloat(ve.textContent);
+        arr[colIdx(c.getAttribute('r')||'A1')]=v});
+      m[+row.getAttribute('r')-1]=arr});
+    for(let i=0;i<m.length;i++)m[i]=m[i]||[];
+    out.push({name:sh.getAttribute('name'),m});
+  }
+  return out;
+}
+async function loadSource(){
+  const f=$('impFile').files[0],paste=$('impPaste').value.trim();
+  IMP.rows=[];IMP.bad=0;IMP.info=[];IMP.err='';IMP.armed=false;
+  try{
+    const parts=[];
+    if(f){const n=f.name.toLowerCase();
+      if(n.endsWith('.xlsx')||n.endsWith('.xlsm')){for(const s of await readXlsx(await f.arrayBuffer()))parts.push([s.name,fromMatrix(s.m)])}
+      else if(n.endsWith('.xls'))throw new Error("Le format .xls (ancien Excel) n'est pas lisible ici. Ouvrez-le dans Excel et enregistrez-le en .xlsx ou en CSV.");
+      else if(n.endsWith('.json')){const a=JSON.parse(await f.text()),rows=[];let bad=0;(Array.isArray(a)?a:[]).forEach(o=>{const r=mapRow(o);r?rows.push(r):bad++});parts.push(['JSON',{rows,bad}])}
+      else parts.push([f.name,fromMatrix(parseCsv(await f.text()))]);
+    }else if(paste)parts.push(['Texte collé',fromMatrix(parseCsv(paste))]);
+    parts.forEach(([name,r])=>{
+      if(r.noHeader)IMP.info.push(`${name} : en-têtes non reconnus, feuille ignorée`);
+      else{IMP.rows.push(...r.rows);IMP.bad+=r.bad;IMP.info.push(`${name} : ${r.rows.length} fiches`)}});
+    if((f||paste)&&!IMP.rows.length&&!IMP.err)IMP.err="Aucune ligne valide trouvée. Il faut une ligne d'en-tête avec au moins Date et Fiche CDA.";
+  }catch(x){IMP.err=x&&x.message||'Fichier illisible.'}
+  drawImp();
+}
+const FIELDS=[['date','date'],['profile','commercial'],['client','fiche client'],['montant','montant'],['ba','BA'],['sq','SQ'],['bo','statut'],['comment','commentaire']];
+function plan(){
+  const mode=document.querySelector('input[name=impOpt]:checked').value,key=$('impKey').value;
+  const kf=r=>key==='cda'?r.cda:r.cda+'|'+r.date;
+  const inFile=new Map();let merged=0;IMP.rows.forEach(r=>{const k=kf(r);if(inFile.has(k))merged++;inFile.set(k,r)});
+  const ex=new Map();S.rows.forEach(r=>{const k=kf(r);if(!ex.has(k))ex.set(k,r)});
+  const used=new Set(mode==='replace'?[]:S.rows.map(r=>r.id));
+  const add=[],upd=[],notes=[];let same=0,skip=0;
+  inFile.forEach((r,k)=>{
+    const m=mode==='replace'?null:ex.get(k);
+    if(m){
+      if(mode==='add'){skip++;return}
+      const ch=FIELDS.filter(([f])=>String(m[f]??'')!==String(r[f]??''));
+      if(!ch.length){same++;return}
+      upd.push({id:m.id,data:{...r,id:m.id}});
+      if(notes.length<8)notes.push(`Fiche ${r.cda} : `+ch.slice(0,3).map(([f,l])=>`${l} ${f==='montant'?eur2.format(m[f]):(m[f]||'vide')} → ${f==='montant'?eur2.format(r[f]):(r[f]||'vide')}`).join(' ; '));
+    }else{let id=r.cda,n=1;while(used.has(id))id=r.cda+'-'+(++n);used.add(id);add.push({id,data:{...r,id}})}
+  });
+  return{mode,add,upd,same,skip,merged,del:mode==='replace'?S.rows.map(r=>r.id):[],notes};
+}
+function drawImp(){
+  const go=$('impGo'),sum=$('impSum');
+  if(IMP.err){sum.innerHTML=`<p class="err">${esc(IMP.err)}</p>`;go.disabled=true;go.textContent='Importer';return}
+  if(!IMP.rows.length){sum.innerHTML='';go.disabled=true;go.textContent='Importer';return}
+  const p=plan();
+  const li=[`<li>Fichier lu : ${esc(IMP.info.join(' · '))}${IMP.bad?` · ${IMP.bad} ligne${IMP.bad>1?'s':''} sans date ou sans fiche CDA ignorée${IMP.bad>1?'s':''}`:''}</li>`,
+    `<li><b>${p.add.length}</b> nouvelle${p.add.length>1?'s':''} fiche${p.add.length>1?'s':''} à ajouter</li>`];
+  if(p.mode==='overwrite')li.push(`<li><b>${p.upd.length}</b> fiche${p.upd.length>1?'s':''} existante${p.upd.length>1?'s':''} écrasée${p.upd.length>1?'s':''}, ${p.same} déjà identique${p.same>1?'s':''}</li>`);
+  if(p.mode==='add')li.push(`<li>${p.skip} fiche${p.skip>1?'s':''} déjà présente${p.skip>1?'s':''}, laissée${p.skip>1?'s':''} telle${p.skip>1?'s':''} quelle${p.skip>1?'s':''}</li>`);
+  if(p.mode==='replace')li.push(`<li class="warnline"><b>${p.del.length}</b> ventes actuelles seront supprimées avant l'import</li>`);
+  if(p.merged)li.push(`<li>${p.merged} doublon${p.merged>1?'s':''} dans le fichier fusionné${p.merged>1?'s':''} (la dernière ligne l'emporte)</li>`);
+  sum.innerHTML=`<ul class="sumlist">${li.join('')}</ul>`+(p.notes.length?`<details><summary>Aperçu des écrasements</summary><ul class="sumlist small">${p.notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul></details>`:'');
+  const n=p.add.length+p.upd.length;
+  go.disabled=!n&&p.mode!=='replace';
+  go.textContent=p.mode==='replace'&&IMP.armed?'Confirmer : tout remplacer':`Importer ${n} fiche${n>1?'s':''}`;
+  go.classList.toggle('danger',p.mode==='replace');
+}
+function openImp(){
+  IMP.rows=[];IMP.bad=0;IMP.info=[];IMP.err='';IMP.armed=false;
+  $('impFile').value='';$('impPaste').value='';document.querySelector('input[name=impOpt][value=add]').checked=true;
+  drawImp();$('impModal').hidden=false;
+}
+const closeImp=()=>{$('impModal').hidden=true};
+async function runImport(){
+  if(!db)return toast('Import indisponible : ouvrez la page avec votre compte');
+  const p=plan();
+  if(p.mode==='replace'&&!IMP.armed){IMP.armed=true;drawImp();return}
+  $('impGo').disabled=true;S.hold=true;
+  try{
+    const col=db.collection('ventes'),ops=[];
+    if(p.mode==='replace'){const keep=new Set(p.add.map(x=>x.id));p.del.forEach(id=>{if(!keep.has(id))ops.push(()=>col.doc(id).delete())})}
+    p.upd.forEach(u=>ops.push(()=>col.doc(u.id).set(u.data)));
+    p.add.forEach(a=>ops.push(()=>col.doc(a.id).set(a.data)));
+    for(let i=0;i<ops.length;i+=20)await Promise.all(ops.slice(i,i+20).map(f=>f()));
+    S.hold=false;closeImp();render();
+    toast(`Import terminé : ${p.add.length} ajoutée${p.add.length>1?'s':''}, ${p.upd.length} mise${p.upd.length>1?'s':''} à jour`);
+  }catch(x){S.hold=false;render();IMP.err="L'import a échoué : "+(x&&x.message||x);drawImp()}
+}
+$('impBtn').onclick=openImp;$('impClose').onclick=closeImp;$('impCancel').onclick=closeImp;
+$('impModal').addEventListener('pointerdown',e=>{if(e.target===$('impModal'))closeImp()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('impModal').hidden)closeImp()});
+$('impFile').onchange=()=>{$('impPaste').value='';loadSource()};
+let pasteT;$('impPaste').oninput=()=>{$('impFile').value='';clearTimeout(pasteT);pasteT=setTimeout(loadSource,350)};
+document.querySelectorAll('input[name=impOpt]').forEach(r=>r.onchange=()=>{IMP.armed=false;drawImp()});
+$('impKey').onchange=()=>{IMP.armed=false;drawImp()};
+$('impGo').onclick=runImport;
+S.loaded=true;
+subs.push(snap=>{S.rows=snap.docs.map(d=>({id:d.id,...d.data()}));if(!S.hold)render()});
+S.rows=store.map(r=>({...r}));render();
+})();
+</script>
