@@ -54,6 +54,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 .btn.danger.armed{background:var(--bad);border-color:var(--bad);color:#fff}
 .btn:disabled{opacity:.55;cursor:default}
 
+.pay{background:var(--good-soft);border:1px solid var(--good);border-radius:10px;padding:16px 18px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center;justify-content:space-between}
+.pay .k{color:var(--good);font-size:12px;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.pay .v{font-family:var(--mono);font-size:30px;font-weight:500;letter-spacing:-.02em;margin:2px 0}
+.pay .d{font-size:13px;color:var(--muted)}
 /* kpis */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:0}
@@ -186,6 +190,7 @@ details summary{cursor:pointer;color:var(--accent);margin-top:6px;font-size:12.5
   </header>
 
   <section class="kpis" id="kpis" aria-label="Indicateurs"></section>
+  <section class="pay" id="pay" aria-label="Total à payer" hidden></section>
 
   <section class="grid">
     <div class="panel">
@@ -278,6 +283,7 @@ const monday=s=>{const d=parse(s);const k=(d.getDay()+6)%7;d.setDate(d.getDate()
 const fmtD=(s,o)=>parse(s).toLocaleDateString('fr-FR',o||{day:'2-digit',month:'short'});
 const fmtFull=s=>parse(s).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
 const isoWeek=s=>{const d=parse(s);d.setDate(d.getDate()+3-((d.getDay()+6)%7));const w1=new Date(d.getFullYear(),0,4);return 1+Math.round(((d-w1)/864e5-3+((w1.getDay()+6)%7))/7)};
+const COMM_RATE=0.20; /* part du CA validé NET du mois versée au commercial */
 const NET_RATE=0.20; /* part retirée du CA validé pour obtenir le CA validé net */
 const STAT={Accepted:'accepted',Waiting:'waiting',Rejected:'rejected',Matrice:'matrice',Reported:'reported'};
 const STAT_COL={Accepted:'var(--good)',Waiting:'var(--warn)',Rejected:'var(--bad)',Matrice:'var(--neutral)',Reported:'var(--rep)'};
@@ -351,7 +357,33 @@ function render(){
     ['Rejetées',a.rej,eur0.format(a.rejAmt)+' rejetés (hors CA)'],
     ['Reportées',a.rep,eur0.format(a.repAmt)+' reportés (hors CA)']
   ].map(([k,v,d])=>`<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+  drawPay(rng);
   drawTrend(rng);drawStatus(cur);drawRank(S.status?curStat:cur);drawTable(rng);
+}
+/* Total à payer : visible seulement si un commercial est sélectionné
+   et que 3 semaines complètes (lun→dim) du mois sont terminées (ou si le mois est passé) */
+function drawPay(rng){
+  const box=$('pay');
+  box.hidden=true;
+  if(!S.profile)return;
+  const ref=S.mode==='range'?rng[1]:S.anchor;
+  const d=parse(ref),y=d.getFullYear(),m=d.getMonth();
+  const first=iso(new Date(y,m,1)),last=iso(new Date(y,m+1,0));
+  if(first>today)return; /* mois à venir */
+  let ready=last<today; /* mois terminé */
+  if(!ready){
+    let weeks=0,mon=monday(first);
+    if(mon<first)mon=addDays(mon,7); /* première semaine entière du mois */
+    while(addDays(mon,6)<=last&&addDays(mon,6)<today){weeks++;mon=addDays(mon,7)}
+    ready=weeks>=3;
+  }
+  if(!ready)return;
+  const rows=S.rows.filter(r=>r.profile===S.profile&&r.bo==='Accepted'&&r.date>=first&&r.date<=last);
+  const total=rows.reduce((t,r)=>t+r.montant,0);
+  const net=total*(1-NET_RATE); /* CA validé net du mois */
+  const lab=d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  box.innerHTML=`<div><div class="k">Total à payer · ${esc(S.profile)} · ${esc(lab)}</div><div class="v">${eur2.format(net*COMM_RATE)}</div><div class="d">${Math.round(COMM_RATE*100)} % du CA validé net du mois (${eur2.format(net)}) · CA validé ${eur2.format(total)} sur ${rows.length} vente${rows.length>1?'s':''} Accepted, moins ${Math.round(NET_RATE*100)} %</div></div>`;
+  box.hidden=false;
 }
 function syncProfiles(){
   const names=[...new Set(S.rows.map(r=>r.profile))].sort((a,b)=>a.localeCompare(b,'fr'));
